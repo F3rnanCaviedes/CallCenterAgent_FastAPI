@@ -1,0 +1,55 @@
+# Entorno local / staging. En producción usar Postgres y Redis gestionados
+# y pasar los secretos por el orquestador, nunca por un archivo .env montado.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: sofia
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD}
+      POSTGRES_DB: sofia_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sofia -d sofia_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Paso separado y de una sola ejecución: aplica las migraciones y termina.
+  migrate:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://sofia:${POSTGRES_PASSWORD}@db:5432/sofia_db
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://sofia:${POSTGRES_PASSWORD}@db:5432/sofia_db
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:

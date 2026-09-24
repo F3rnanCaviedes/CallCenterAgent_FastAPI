@@ -1,0 +1,25 @@
+# Secrets — NUNCA commitear
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Entornos virtuales
+venv/
+.venv/
+
+# Herramientas
+graphify-out/
+
+# Logs / temporales
+*.log
+
+# Config personal de Claude Code
+.claude/settings.local.json
