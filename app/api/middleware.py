@@ -30,8 +30,10 @@ _SECURITY_HEADERS = {
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
         response = await call_next(request)
+        # setdefault: una ruta que fija su propia CSP (el dashboard, que
+        # necesita su script) la conserva; el resto recibe la estricta.
         for header, value in _SECURITY_HEADERS.items():
-            response.headers[header] = value
+            response.headers.setdefault(header, value)
         # Remove fingerprinting headers
         if "server" in response.headers:
             del response.headers["server"]

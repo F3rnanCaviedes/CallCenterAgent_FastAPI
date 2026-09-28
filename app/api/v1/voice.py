@@ -186,6 +186,9 @@ async def media_stream(ws: WebSocket) -> None:
     await ws.accept()
     llamada = Llamada(ws)
     agente = ws.app.state.agent
+    sesiones = ws.app.state.sessions
+    # Referencias vivas: una tarea sin referencia puede recogerla el GC.
+    metricas: list[asyncio.Task] = []
 
     # Un solo cliente HTTP para toda la llamada: la conexion TLS con Azure se
     # reutiliza entre frases en vez de renegociar en cada una.
@@ -227,6 +230,10 @@ async def media_stream(ws: WebSocket) -> None:
                             llamada.decir_en_fondo(
                                 "Hola, soy Sofía. ¿En qué te puedo ayudar?", http
                             )
+                            # En tarea aparte: con Redis lento el saludo no espera.
+                            metricas.append(asyncio.create_task(
+                                sesiones.registrar_llamada("inicio", llamada.call_sid)
+                            ))
 
                         elif evento == "media":
                             await stt.enviar_audio(
@@ -245,3 +252,8 @@ async def media_stream(ws: WebSocket) -> None:
             logger.info("ws_desconectado call=%s", llamada.call_sid)
         except Exception as exc:  # noqa: BLE001
             logger.error("ws_error call=%s error=%s", llamada.call_sid, exc)
+            await sesiones.registrar_llamada("error", llamada.call_sid)
+        finally:
+            if llamada.stream_sid is not None:
+                await asyncio.gather(*metricas)
+                await sesiones.registrar_llamada("fin", llamada.call_sid)

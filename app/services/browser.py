@@ -33,6 +33,10 @@ class NavegadorCompartido:
         # lanzarian dos Chromium y uno quedaria huerfano consumiendo memoria.
         self._lock = asyncio.Lock()
 
+    @property
+    def conectado(self) -> bool:
+        return self._browser is not None and self._browser.is_connected()
+
     async def iniciar(self) -> None:
         """Arranca Chromium. Se llama en el lifespan, no en la peticion."""
         async with self._lock:

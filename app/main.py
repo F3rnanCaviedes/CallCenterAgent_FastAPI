@@ -19,7 +19,7 @@ from slowapi.middleware import SlowAPIMiddleware
 
 from app.agent.core import AgentCore
 from app.agent.session import SessionManager
-from app.api import health
+from app.api import dashboard, health
 from app.api.limiter import limiter
 from app.api.middleware import RequestAuditMiddleware, SecurityHeadersMiddleware
 from app.api.v1 import appointments, auth, chat, reminders, voice
@@ -116,6 +116,7 @@ def create_app() -> FastAPI:
 
     # Routers
     app.include_router(health.router)
+    app.include_router(dashboard.router)
     app.include_router(auth.router)
     app.include_router(chat.router)
     app.include_router(appointments.router)
