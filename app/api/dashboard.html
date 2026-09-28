@@ -31,7 +31,8 @@
   .pill { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
   .pill::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
   .ok { color: var(--ok); } .warn { color: var(--warn); } .bad { color: var(--bad); }
-  .rows div { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .rows div { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .rows div span:last-child { text-align: right; overflow-wrap: anywhere; }
   .rows div:last-child { border-bottom: 0; }
   .bars { display: flex; align-items: flex-end; gap: 8px; height: 140px; }
   .bars > div { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
