@@ -5,14 +5,32 @@ Conversation history is stored encrypted; session IDs are cryptographically rand
 from __future__ import annotations
 
 import json
+import logging
+import time
+from datetime import datetime, timedelta, timezone
 from typing import Any
-
+import pytz
 import redis.asyncio as aioredis
 
 from app.config import get_settings
 from app.security.crypto import EncryptionManager, generate_secure_token
 
+logger = logging.getLogger(__name__)
+
 _MAX_TURNS = 40  # Hard cap on stored messages to bound memory usage
+
+_M = "sofia:metrics:calls"
+_RETENCION_S = 40 * 86400
+# ponytail: una llamada de más de 4 h se da por muerta; subir si hay llamadas así de largas.
+_LLAMADA_MAX_S = 4 * 3600
+
+
+def _tz():
+    return pytz.timezone(get_settings().timezone)
+
+
+def _hoy() -> str:
+    return datetime.now(_tz()).date().isoformat()
 
 
 class SessionManager:
@@ -89,6 +107,54 @@ class SessionManager:
     async def ping(self) -> None:
         """Lanza excepcion si Redis no responde. La usa /health/ready."""
         await self._client().ping()
+
+    # ── Métricas de llamadas (las lee /dashboard/data) ────────────────────
+
+    async def registrar_llamada(self, evento: str, call_sid: str | None) -> None:
+        """evento ∈ {inicio, fin, error}. Nunca lanza: una métrica caída no
+        puede cortar una llamada en curso."""
+        hoy = _hoy()
+        sid = call_sid or "sin_sid"
+        try:
+            async with self._client().pipeline(transaction=False) as p:
+                if evento == "inicio":
+                    p.incr(f"{_M}:total")
+                    p.incr(f"{_M}:dia:{hoy}")
+                    p.expire(f"{_M}:dia:{hoy}", _RETENCION_S)
+                    # ZSET y no contador: si el proceso muere a mitad de
+                    # llamada, la entrada caduca sola en vez de dejar
+                    # "activas" inflado para siempre.
+                    p.zadd(f"{_M}:activas", {sid: time.time()})
+                    p.set(f"{_M}:ultima", datetime.now(timezone.utc).isoformat())
+                elif evento == "fin":
+                    p.zrem(f"{_M}:activas", sid)
+                elif evento == "error":
+                    p.incr(f"{_M}:errores:{hoy}")
+                    p.expire(f"{_M}:errores:{hoy}", _RETENCION_S)
+                await p.execute()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("metrica_fallo evento=%s error=%s", evento, type(exc).__name__)
+
+    async def leer_metricas(self, dias: int = 7) -> dict:
+        ahora = datetime.now(_tz())
+        fechas = [(ahora - timedelta(days=i)).date().isoformat()
+                  for i in range(dias - 1, -1, -1)]
+        async with self._client().pipeline(transaction=False) as p:
+            p.zremrangebyscore(f"{_M}:activas", 0, time.time() - _LLAMADA_MAX_S)
+            p.zcard(f"{_M}:activas")
+            p.get(f"{_M}:total")
+            p.get(f"{_M}:ultima")
+            p.get(f"{_M}:errores:{fechas[-1]}")
+            p.mget([f"{_M}:dia:{f}" for f in fechas])
+            _, activas, total, ultima, errores, por_dia = await p.execute()
+        return {
+            "active": activas,
+            "total": int(total or 0),
+            "today": int(por_dia[-1] or 0),
+            "errors_today": int(errores or 0),
+            "last_call_at": ultima,
+            "by_day": [{"date": f, "calls": int(n or 0)} for f, n in zip(fechas, por_dia)],
+        }
 
     async def close(self) -> None:
         if self._redis:

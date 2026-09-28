@@ -13,3 +13,5 @@ graphify-out/
 Dockerfile
 .dockerignore
 docker-compose.yml
+dashboard/node_modules/
+app/api/static/

@@ -1,4 +1,14 @@
 # syntax=docker/dockerfile:1
+
+# Etapa de build del dashboard (TypeScript -> JS). Node no llega a la imagen
+# final: sólo se copia el .js compilado.
+FROM node:22-alpine AS dashboard
+WORKDIR /build/dashboard
+COPY dashboard/package.json dashboard/package-lock.json ./
+RUN npm ci
+COPY dashboard/ ./
+RUN npm run build
+
 FROM python:3.11-slim
 
 # El form-filler necesita Chromium (~700 MB con sus librerías de sistema).
@@ -37,6 +47,7 @@ RUN if [ "$INSTALL_BROWSER" = "true" ]; then \
 COPY alembic.ini ./
 COPY alembic/ ./alembic/
 COPY app/ ./app/
+COPY --from=dashboard /build/app/api/static/ ./app/api/static/
 
 # Sin root: si alguien escapa del proceso, no es administrador del contenedor.
 # mkdir -p: con INSTALL_BROWSER=false el directorio de Playwright nunca se

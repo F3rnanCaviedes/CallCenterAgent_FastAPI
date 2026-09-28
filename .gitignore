@@ -23,3 +23,7 @@ graphify-out/
 
 # Config personal de Claude Code
 .claude/settings.local.json
+
+# Dashboard: dependencias y JS compilado (se genera con npm run build)
+dashboard/node_modules/
+app/api/static/

@@ -53,6 +53,8 @@ The same agent is also exposed as a text API (`POST /v1/agent/chat`) for web or 
 | `POST` | `/v1/voice/incoming` | Twilio voice webhook |
 | `WS` | `/v1/voice/stream` | Twilio Media Stream |
 | `GET` | `/health`, `/health/ready` | Liveness / readiness |
+| `GET` | `/dashboard` | Operations dashboard (static page) |
+| `GET` | `/dashboard/data` | Dashboard metrics as JSON (internal key only) |
 
 Interactive docs at `/docs` when `APP_ENV` is not `production`.
 
@@ -74,6 +76,44 @@ docker compose build --build-arg INSTALL_BROWSER=false
 
 To take real calls, point your Twilio number's voice webhook at `https://<your-host>/v1/voice/incoming` and set `PUBLIC_BASE_URL` to that exact host.
 
+## Operations dashboard
+
+![Sofía operations dashboard](docs/dashboard.png)
+
+<sub>Screenshot with sample data. Dark mode: [docs/dashboard-dark.png](docs/dashboard-dark.png).</sub>
+
+A live view (refreshes every 5 s) to check that Sofía is working:
+
+- **Status**: healthy / degraded, environment and uptime.
+- **Calls**: active, today, total, errors today, and a 7-day bar chart.
+- **Connections**: Postgres, Redis and Chromium (form filler).
+- **Integrations**: LLM, Twilio, Deepgram, Azure TTS and SendGrid (configured / missing).
+- **Appointments and reminders**: created today by status, next 24 h, reminders by status.
+
+It only exposes counts and states — no patient data, no secrets. If Postgres or Redis is down, the dashboard still loads and flags the affected block instead of failing.
+
+**Open it:**
+
+1. Set at least one key in `INTERNAL_API_KEYS` in `.env` (the same key the reminder cron uses):
+   ```bash
+   INTERNAL_API_KEYS=["<long-random-key>"]
+   ```
+2. Start the stack with `docker compose up --build`. The image compiles the TypeScript frontend in a Node build stage, so the host doesn't need Node.
+3. Go to <http://localhost:8000/dashboard> and enter the key.
+
+The page ships no data; it fetches `GET /dashboard/data` with an `X-Internal-Key` header (401 without a valid key). Call metrics are Redis counters written off the call's hot path, so the greeting never waits on them.
+
+**Frontend development** (without Docker):
+
+```bash
+cd dashboard
+npm ci
+npm run build     # writes app/api/static/dashboard.js (not versioned)
+npm run watch     # rebuild on save
+```
+
+Source is `dashboard/src/dashboard.ts`; its types mirror the `/dashboard/data` JSON in `app/api/dashboard.py`.
+
 ## Tests
 
 Tests run without network or credentials — Deepgram, Azure, Twilio and the LLM are simulated. Each file runs directly:
@@ -85,8 +125,9 @@ python tests/test_chat_stream.py       # first audio on first sentence, barge-in
 python tests/test_auth_token.py        # token issuance + global rate limit
 python tests/test_reminders.py         # internal-key-only trigger, explicit dispatch failures
 python tests/test_browser_persistente.py  # browser reuse, session isolation, crash recovery
+python tests/test_dashboard.py         # CSP, internal key required, degraded instead of 500
 ```
 
 ## Stack
 
-Python 3.11 · FastAPI · Pydantic v2 · Anthropic SDK · SQLAlchemy (async) + asyncpg · Alembic · Redis · PyJWT · cryptography · slowapi · Playwright · structlog · Twilio · SendGrid · Docker
+Python 3.11 · FastAPI · Pydantic v2 · Anthropic SDK · SQLAlchemy (async) + asyncpg · Alembic · Redis · PyJWT · cryptography · slowapi · Playwright · structlog · Twilio · SendGrid · TypeScript · Docker

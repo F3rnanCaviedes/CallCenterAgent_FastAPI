@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sofía · Estado</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #fff; --fg: #1b1f24; --muted: #667085; --line: #e4e7ec;
+    --ok: #1a7f4b; --warn: #b54708; --bad: #c01c28; --bar: #3b6fd8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --card: #171b21; --fg: #e6e8eb; --muted: #98a2b3; --line: #2a3038;
+      --ok: #3fbf7f; --warn: #f0a44b; --bad: #ff6b6b; --bar: #6b95ff;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+           justify-content: space-between; padding: 16px; border-bottom: 1px solid var(--line); }
+  h1 { font-size: 18px; margin: 0; }
+  h2 { font-size: 13px; margin: 0 0 10px; color: var(--muted); font-weight: 600;
+       text-transform: uppercase; letter-spacing: .04em; }
+  main { max-width: 1100px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+  .big { font-size: 28px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .muted { color: var(--muted); }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+  .pill::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
+  .ok { color: var(--ok); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+  .rows div { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .rows div span:last-child { text-align: right; overflow-wrap: anywhere; }
+  .rows div:last-child { border-bottom: 0; }
+  .bars { display: flex; align-items: flex-end; gap: 8px; height: 140px; }
+  .bars > div { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+                height: 100%; justify-content: flex-end; font-size: 12px; }
+  .bars span.b { width: 100%; background: var(--bar); border-radius: 4px 4px 0 0; min-height: 2px; }
+  form { display: flex; gap: 8px; }
+  input, button { font: inherit; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line);
+                  background: var(--card); color: var(--fg); }
+  button { cursor: pointer; }
+  #err { color: var(--bad); }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Sofía · Estado del agente</h1>
+    <div class="muted"><span id="actualizado">Sin datos</span> · <span id="err"></span></div>
+  </div>
+  <form id="f">
+    <input id="clave" type="password" placeholder="X-Internal-Key" autocomplete="off" aria-label="Clave interna">
+    <button>Conectar</button>
+  </form>
+</header>
+<main>
+  <section class="grid">
+    <div class="card"><h2>Estado</h2><div id="estado" class="pill muted">—</div></div>
+    <div class="card"><h2>Llamadas activas</h2><div id="activas" class="big">—</div></div>
+    <div class="card"><h2>Llamadas hoy</h2><div id="hoy" class="big">—</div></div>
+    <div class="card"><h2>Llamadas totales</h2><div id="total" class="big">—</div></div>
+    <div class="card"><h2>Errores hoy</h2><div id="errores" class="big">—</div></div>
+    <div class="card"><h2>Uptime</h2><div id="uptime" class="big">—</div></div>
+  </section>
+
+  <section class="card">
+    <h2>Llamadas últimos 7 días</h2>
+    <div id="barras" class="bars"></div>
+    <div class="muted" style="margin-top:8px">Última llamada: <span id="ultima">—</span></div>
+  </section>
+
+  <section class="grid">
+    <div class="card"><h2>Conexiones</h2><div id="deps" class="rows"></div></div>
+    <div class="card"><h2>Integraciones</h2><div id="integ" class="rows"></div></div>
+    <div class="card"><h2>Citas</h2><div id="citas" class="rows"></div></div>
+    <div class="card"><h2>Recordatorios</h2><div id="rec" class="rows"></div></div>
+  </section>
+</main>
+<script type="module" src="/dashboard/app.js"></script>
+</body>
+</html>
