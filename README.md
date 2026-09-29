@@ -131,3 +131,32 @@ python tests/test_dashboard.py         # CSP, internal key required, degraded in
 ## Stack
 
 Python 3.11 · FastAPI · Pydantic v2 · Anthropic SDK · SQLAlchemy (async) + asyncpg · Alembic · Redis · PyJWT · cryptography · slowapi · Playwright · structlog · Twilio · SendGrid · TypeScript · Docker
+
+## CI/CD (VPS)
+
+`.github/workflows/ci.yml`: every PR runs tests + dashboard build + `docker build`. On `main` the image is pushed to GHCR as `ghcr.io/f3rnancaviedes/callcenteragent_fastapi:<sha>` and deployed to the VPS over SSH. All actions are pinned by commit SHA; Dependabot keeps them current.
+
+One-time VPS setup:
+
+```bash
+# 1. Deploy user (docker group = root-equivalent; the key restriction below is what limits it)
+sudo useradd -m -s /bin/sh -G docker deploy
+sudo mkdir -p /opt/sofia && sudo chown deploy: /opt/sofia
+# 2. Copy docker-compose.yml, deploy/deploy.sh and a production .env to /opt/sofia (chmod 600 .env)
+# 3. If the GHCR package is private: as deploy, `docker login ghcr.io` with a PAT scoped read:packages
+# 4. Key pair for CI; the public key can only run deploy.sh:
+ssh-keygen -t ed25519 -N "" -f ci-deploy
+sudo -u deploy install -m 700 -d ~deploy/.ssh
+echo "command=\"/opt/sofia/deploy.sh\",restrict $(cat ci-deploy.pub)" | sudo tee -a ~deploy/.ssh/authorized_keys
+```
+
+GitHub → Settings → Environments → `production` (add required reviewers if you want manual approval), secrets:
+
+| Secret | Value |
+|---|---|
+| `VPS_HOST` | VPS hostname/IP |
+| `VPS_USER` | `deploy` |
+| `VPS_SSH_KEY` | contents of `ci-deploy` (private key) |
+| `VPS_KNOWN_HOSTS` | output of `ssh-keyscan <host>`, verified against the VPS fingerprint |
+
+Rollback: `ssh -i ci-deploy deploy@<host> <previous-sha>`. Put a TLS reverse proxy (Caddy/nginx) in front of port 8000.
