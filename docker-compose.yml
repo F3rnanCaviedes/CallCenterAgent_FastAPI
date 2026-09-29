@@ -27,6 +27,8 @@ services:
   # Paso separado y de una sola ejecución: aplica las migraciones y termina.
   migrate:
     build: .
+    # En el VPS deploy.sh fija SOFIA_IMAGE a la imagen de GHCR; en local se construye.
+    image: ${SOFIA_IMAGE:-sofia-agent:local}
     env_file: .env
     environment:
       DATABASE_URL: postgresql://sofia:${POSTGRES_PASSWORD}@db:5432/sofia_db
@@ -37,6 +39,7 @@ services:
 
   api:
     build: .
+    image: ${SOFIA_IMAGE:-sofia-agent:local}
     env_file: .env
     environment:
       DATABASE_URL: postgresql://sofia:${POSTGRES_PASSWORD}@db:5432/sofia_db
